@@ -10,6 +10,12 @@
 [build.environment]
   NODE_VERSION = "18"
 
+# IMPORTANT: Environment variables must be set in Netlify Dashboard
+# Go to: Site settings > Environment variables
+# Add these variables:
+# VITE_SUPABASE_URL = "https://your-project-id.supabase.co"
+# VITE_SUPABASE_ANON_KEY = "your-anon-public-key-here"
+
 [[headers]]
   for = "/assets/*"
   [headers.values]
@@ -29,3 +35,7 @@
   for = "/index.html"
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

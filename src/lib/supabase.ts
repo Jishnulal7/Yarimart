@@ -18,7 +18,7 @@ const getEnvVariable = (key: string, defaultValue: string = ''): string => {
 const supabaseUrl = getEnvVariable('VITE_SUPABASE_URL');
 const supabaseAnonKey = getEnvVariable('VITE_SUPABASE_ANON_KEY');
 
-// Validate configuration
+// Enhanced validation with better error reporting
 const isValidUrl = supabaseUrl && 
   supabaseUrl !== '' && 
   supabaseUrl !== 'https://example.supabase.co' && 
@@ -36,11 +36,16 @@ export const isSupabaseConfigured = (): boolean => {
   const isConfigured = isValidUrl && isValidKey;
   
   if (!isConfigured) {
-    console.warn('⚠️ Supabase is not properly configured.');
-    console.warn('The app will run in demo mode without backend functionality.');
-    console.warn('To enable full functionality, please configure your environment variables:');
-    console.warn('- VITE_SUPABASE_URL: Your Supabase project URL');
-    console.warn('- VITE_SUPABASE_ANON_KEY: Your Supabase anon key');
+    console.warn('⚠️ Supabase Configuration Status:');
+    console.warn(`- URL configured: ${isValidUrl ? '✅' : '❌'} (${supabaseUrl || 'not set'})`);
+    console.warn(`- Anon key configured: ${isValidKey ? '✅' : '❌'} (${supabaseAnonKey ? 'present' : 'not set'})`);
+    
+    if (!isValidUrl) {
+      console.warn('Please set VITE_SUPABASE_URL in your environment variables');
+    }
+    if (!isValidKey) {
+      console.warn('Please set VITE_SUPABASE_ANON_KEY in your environment variables');
+    }
   }
   
   return isConfigured;
@@ -49,6 +54,7 @@ export const isSupabaseConfigured = (): boolean => {
 // Create a default client (will work even with invalid credentials for demo mode)
 const createSupabaseClient = () => {
   if (isSupabaseConfigured()) {
+    console.log('✅ Supabase is properly configured');
     return createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
@@ -60,6 +66,7 @@ const createSupabaseClient = () => {
   }
   
   // Return a mock client for demo mode
+  console.log('📱 Running in demo mode - limited functionality available');
   return createClient(
     'https://demo.supabase.co',
     'demo-anon-key',
@@ -75,9 +82,12 @@ const createSupabaseClient = () => {
 
 export const supabase = createSupabaseClient();
 
-// Log configuration status
-if (isSupabaseConfigured()) {
-  console.log('✅ Supabase is properly configured');
-} else {
-  console.log('📱 Running in demo mode - some features may be limited');
-}
+// Development helper function
+export const getSupabaseConfig = () => {
+  return {
+    url: supabaseUrl,
+    hasValidUrl: isValidUrl,
+    hasValidKey: isValidKey,
+    isConfigured: isSupabaseConfigured()
+  };
+};

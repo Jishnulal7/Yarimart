@@ -31,7 +31,7 @@ const Navbar: React.FC = () => {
       } catch (error) {
         console.error('Error fetching categories:', error);
         // Fallback to static categories
-        setCategories(['Power Tools', 'Safety Equipment', 'Industrial Equipment', 'Hand Tools']);
+        setCategories(['Power Tools', 'Safety', 'Industrial', 'Hand Tools']);
       }
     };
     

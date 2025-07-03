@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, PenTool as Tool, Truck, Wrench, Clock } from 'lucide-react';
+import { ArrowRight, Wrench, Truck, Clock } from 'lucide-react';
 import Hero from '../components/home/Hero';
 import FeaturedProducts from '../components/home/FeaturedProducts';
 import CategoryPreview from '../components/home/CategoryPreview';
@@ -35,11 +35,6 @@ const HomePage: React.FC = () => {
   ];
 
   const features = [
-    {
-      icon: Tool,
-      title: t('home.services.rental'),
-      description: t('home.services.rentalDesc'),
-    },
     {
       icon: Wrench,
       title: t('home.services.repair'),
@@ -94,7 +89,7 @@ const HomePage: React.FC = () => {
               Complete solutions for your industrial and professional needs
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {features.map((feature) => {
               const IconComponent = feature.icon;
               return (

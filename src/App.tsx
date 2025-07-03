@@ -18,6 +18,8 @@ import OrdersPage from './pages/OrdersPage';
 import OrderDetailsPage from './pages/OrderDetailsPage';
 import WishlistPage from './pages/WishlistPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import AdminErrorBoundary from './components/admin/AdminErrorBoundary';
+import AdminProtectedRoute from './components/admin/AdminProtectedRoute';
 import { CartProvider } from './context/CartContext';
 import { WishlistProvider } from './context/WishlistContext';
 import { AuthProvider } from './context/AuthContext';
@@ -26,33 +28,33 @@ import { ThemeProvider } from './context/ThemeContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { isSupabaseConfigured } from './lib/supabase';
 
-// Lazy load admin components only if Supabase is configured
+// Lazy load admin components with proper error handling
 const AdminLayout = isSupabaseConfigured() 
-  ? React.lazy(() => import('./pages/admin/AdminLayout').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminLayout'))
   : null;
 
 const AdminDashboard = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminDashboard').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminDashboard'))
   : null;
 
 const AdminOrders = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminOrders').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminOrders'))
   : null;
 
 const AdminProducts = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminProducts').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminProducts'))
   : null;
 
 const AdminCustomers = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminCustomers').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminCustomers'))
   : null;
 
 const AdminAnalytics = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminAnalytics').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminAnalytics'))
   : null;
 
 const AdminSettings = isSupabaseConfigured()
-  ? React.lazy(() => import('./pages/admin/AdminSettings').catch(() => ({ default: AdminAccessDenied })))
+  ? React.lazy(() => import('./pages/admin/AdminSettings'))
   : null;
 
 // 404 Not Found component
@@ -79,7 +81,7 @@ const AdminAccessDenied: React.FC = () => (
         Admin Panel Unavailable
       </h1>
       <p className="text-gray-600 dark:text-gray-400 mb-8">
-        The admin panel is not available in this environment.
+        The admin panel is not available in this environment or Supabase is not configured.
       </p>
       <a
         href="/"
@@ -94,7 +96,10 @@ const AdminAccessDenied: React.FC = () => (
 // Loading component for Suspense fallback
 const LoadingSpinner: React.FC = () => (
   <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600 dark:border-primary-400 mx-auto mb-4"></div>
+      <p className="text-gray-600 dark:text-gray-300">Loading...</p>
+    </div>
   </div>
 );
 
@@ -109,13 +114,20 @@ function App() {
                 <CartProvider>
                   <WishlistProvider>
                     <Routes>
-                      {/* Admin Routes - only if Supabase is configured and components loaded */}
+                      {/* Admin Routes - only if Supabase is configured */}
                       {isSupabaseConfigured() && AdminLayout ? (
-                        <Route path="/admin" element={
-                          <Suspense fallback={<LoadingSpinner />}>
-                            <AdminLayout />
-                          </Suspense>
-                        }>
+                        <Route 
+                          path="/admin/*" 
+                          element={
+                            <AdminErrorBoundary>
+                              <AdminProtectedRoute>
+                                <Suspense fallback={<LoadingSpinner />}>
+                                  <AdminLayout />
+                                </Suspense>
+                              </AdminProtectedRoute>
+                            </AdminErrorBoundary>
+                          }
+                        >
                           <Route index element={
                             AdminDashboard ? (
                               <Suspense fallback={<LoadingSpinner />}>

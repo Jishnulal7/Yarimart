@@ -72,41 +72,19 @@ const AdminDashboard: React.FC = () => {
       }
 
       // Fetch orders and products data in parallel
-      const [ordersResult, productsResult] = await Promise.all([
+      const [ordersResult, productsResult, usersResult] = await Promise.all([
         supabase.from('orders').select('*'),
-        supabase.from('products').select('*')
+        supabase.from('products').select('*'),
+        supabase.from('users').select('id, email, created_at')
       ]);
 
       if (ordersResult.error) throw ordersResult.error;
       if (productsResult.error) throw productsResult.error;
+      if (usersResult.error) throw usersResult.error;
 
       const orders = ordersResult.data || [];
       const products = productsResult.data || [];
-
-      // Fetch customers data using the Edge Function
-      let customersCount = 0;
-      try {
-        const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-users`;
-        const headers = {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        };
-
-        const response = await fetch(apiUrl, { headers });
-        
-        if (!response.ok) {
-          const errorData = await response.json();
-          console.error('Edge function error:', errorData);
-          throw new Error(errorData.error || 'Failed to fetch customer data');
-        }
-        
-        const customers = await response.json();
-        customersCount = customers?.length || 0;
-      } catch (fetchError) {
-        console.error('Error fetching customers via Edge Function:', fetchError);
-        // Don't throw here, just log the error and continue with 0 customers
-        customersCount = 0;
-      }
+      const users = usersResult.data || [];
 
       // Calculate stats
       const pendingOrders = orders.filter(order => order.status === 'pending');
@@ -122,7 +100,7 @@ const AdminDashboard: React.FC = () => {
         pendingOrders: pendingOrders.length,
         totalProducts: products.length,
         totalRevenue,
-        totalCustomers: customersCount,
+        totalCustomers: users.length,
         lowStockProducts: lowStockProducts.length,
         revenueGrowth,
         orderGrowth
