@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Package, Truck, Calendar, CreditCard, MapPin } from 'lucide-react';
+import { Package, Truck, Calendar, CreditCard, MapPin, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useRegion } from '../context/RegionContext';
 import BreadcrumbNav from '../components/shared/BreadcrumbNav';
@@ -54,25 +54,112 @@ const OrderDetailsPage: React.FC = () => {
   };
 
   const getStatusTimeline = (status: string) => {
+    const statusDescriptions = {
+      pending: "We've received your order and are preparing it for processing.",
+      confirmed: "Your order has been confirmed and payment has been processed.",
+      shipped: "Your order is on its way to you! Track your package for updates.",
+      delivered: "Your order has been delivered. Enjoy your purchase!"
+    };
+
+    // Mock dates for timeline steps
+    // In a real app, these would come from the database
+    const mockDates = {
+      pending: new Date(order?.created_at || ''),
+      confirmed: order?.status === 'confirmed' || order?.status === 'shipped' || order?.status === 'delivered' 
+        ? new Date(new Date(order.created_at).getTime() + 24 * 60 * 60 * 1000) // +1 day
+        : null,
+      shipped: order?.status === 'shipped' || order?.status === 'delivered'
+        ? new Date(new Date(order?.created_at || '').getTime() + 3 * 24 * 60 * 60 * 1000) // +3 days
+        : null,
+      delivered: order?.status === 'delivered'
+        ? new Date(new Date(order?.created_at || '').getTime() + 5 * 24 * 60 * 60 * 1000) // +5 days
+        : null
+    };
+
     const steps = [
-      { name: 'Order Placed', icon: Package },
-      { name: 'Confirmed', icon: CreditCard },
-      { name: 'Shipped', icon: Truck },
-      { name: 'Delivered', icon: MapPin }
+      { 
+        name: 'Order Placed', 
+        status: 'pending', 
+        icon: Package,
+        description: statusDescriptions.pending,
+        date: mockDates.pending
+      },
+      { 
+        name: 'Confirmed', 
+        status: 'confirmed', 
+        icon: CheckCircle,
+        description: statusDescriptions.confirmed,
+        date: mockDates.confirmed
+      },
+      { 
+        name: 'Shipped', 
+        status: 'shipped', 
+        icon: Truck,
+        description: statusDescriptions.shipped,
+        date: mockDates.shipped
+      },
+      { 
+        name: 'Delivered', 
+        status: 'delivered', 
+        icon: MapPin,
+        description: statusDescriptions.delivered,
+        date: mockDates.delivered
+      }
     ];
 
     const statusIndex = ['pending', 'confirmed', 'shipped', 'delivered'].indexOf(status);
+    const currentDate = new Date();
 
     return steps.map((step, index) => {
       const StepIcon = step.icon;
       const isCompleted = index <= statusIndex;
       const isCurrent = index === statusIndex;
+      const isPending = index > statusIndex;
+      
+      // Calculate estimated date for future steps
+      let estimatedDate = null;
+      if (isPending && order) {
+        const createdDate = new Date(order.created_at);
+        // Add days based on step (simplified estimation)
+        switch(index) {
+          case 1: // confirmed: +1 day from order date
+            estimatedDate = new Date(createdDate.getTime() + 24 * 60 * 60 * 1000);
+            break;
+          case 2: // shipped: +3 days from order date
+            estimatedDate = new Date(createdDate.getTime() + 3 * 24 * 60 * 60 * 1000);
+            break;
+          case 3: // delivered: +5 days from order date
+            estimatedDate = new Date(createdDate.getTime() + 5 * 24 * 60 * 60 * 1000);
+            break;
+        }
+        
+        // If estimated date is in the past but status hasn't changed, show "Expected soon"
+        if (estimatedDate && estimatedDate < currentDate) {
+          estimatedDate = null;
+        }
+      }
+      
+      const dateToShow = step.date || estimatedDate;
 
       return {
         ...step,
         isCompleted,
-        isCurrent
+        isCurrent,
+        isPending,
+        dateToShow
       };
+    });
+  };
+
+  const formatDateTime = (date: Date | null) => {
+    if (!date) return null;
+    
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
     });
   };
 
@@ -141,38 +228,95 @@ const OrderDetailsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Order Timeline */}
-          <div className="p-6 border-b border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between">
-              {timeline.map((step, index) => (
-                <div key={step.name} className="relative flex flex-col items-center">
-                  <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      step.isCompleted
-                        ? 'bg-primary-600 dark:bg-primary-500'
-                        : 'bg-gray-200 dark:bg-gray-700'
-                    }`}
-                  >
-                    <step.icon
-                      className={`w-5 h-5 ${
-                        step.isCompleted ? 'text-white' : 'text-gray-400 dark:text-gray-500'
-                      }`}
-                    />
-                  </div>
-                  <div className="mt-2 text-sm font-medium text-gray-900 dark:text-white">
-                    {step.name}
-                  </div>
-                  {index < timeline.length - 1 && (
-                    <div
-                      className={`absolute top-4 left-full w-full h-0.5 -ml-4 ${
-                        step.isCompleted 
-                          ? 'bg-primary-600 dark:bg-primary-500' 
-                          : 'bg-gray-200 dark:bg-gray-700'
-                      }`}
-                    />
-                  )}
-                </div>
-              ))}
+          {/* Order Timeline - Improved Version */}
+          <div className="p-6 border-b border-gray-200 dark:border-gray-700 overflow-hidden">
+            <h2 className="text-lg font-medium mb-6 text-gray-900 dark:text-white">Order Progress</h2>
+            
+            <div className="relative">
+              {/* Timeline Track */}
+              <div className="hidden md:block absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700 transform -translate-x-1/2"></div>
+              
+              <div className="space-y-12">
+                {timeline.map((step, index) => {
+                  const StepIcon = step.icon;
+                  return (
+                    <div key={step.name} className="relative flex flex-col md:flex-row items-center">
+                      {/* Status Icon */}
+                      <div className="flex h-9 items-center justify-center">
+                        <div className={`relative z-10 flex h-11 w-11 items-center justify-center rounded-full ${
+                          step.isCompleted
+                            ? 'bg-primary-600 dark:bg-primary-500'
+                            : step.isCurrent
+                              ? 'bg-primary-100 dark:bg-primary-900/50 border-2 border-primary-500'
+                              : 'bg-gray-200 dark:bg-gray-700'
+                        }`}>
+                          <StepIcon className={`w-5 h-5 ${
+                            step.isCompleted 
+                              ? 'text-white' 
+                              : step.isCurrent
+                                ? 'text-primary-700 dark:text-primary-400' 
+                                : 'text-gray-400 dark:text-gray-500'
+                          }`} />
+                        </div>
+                      </div>
+                      
+                      {/* Timeline Content */}
+                      <div className="mt-3 md:mt-0 md:ml-6 md:w-3/4 text-center md:text-left">
+                        <div className={`font-medium ${
+                          step.isCompleted 
+                            ? 'text-primary-600 dark:text-primary-400' 
+                            : step.isCurrent
+                              ? 'text-gray-900 dark:text-white' 
+                              : 'text-gray-500 dark:text-gray-400'
+                        }`}>
+                          {step.name}
+                        </div>
+                        
+                        <div className="mt-2 flex flex-col md:flex-row md:items-center text-sm">
+                          {/* Status Date */}
+                          {step.dateToShow && (
+                            <div className={`flex items-center ${
+                              step.isCompleted ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'
+                            }`}>
+                              <Clock className="h-4 w-4 mr-1 flex-shrink-0" />
+                              {step.isCompleted ? (
+                                <span>{formatDateTime(step.dateToShow)}</span>
+                              ) : (
+                                <span>Expected {formatDateTime(step.dateToShow) || 'soon'}</span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Status Indicator */}
+                          <div className="mt-1 md:mt-0 md:ml-3">
+                            {step.isCompleted ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Completed
+                              </span>
+                            ) : step.isCurrent ? (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                                <Clock className="h-3 w-3 mr-1" />
+                                In Progress
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Pending
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Description */}
+                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                          {step.description}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -262,8 +406,42 @@ const OrderDetailsPage: React.FC = () => {
             <div>
               <h2 className="text-lg font-medium mb-4 dark:text-white">Payment Information</h2>
               <div className="text-sm text-gray-600 dark:text-gray-400">
-                <p>Payment Method: {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Bank Transfer'}</p>
-                <p className="mt-2">Payment Status: {order.status === 'pending' ? 'Pending' : 'Completed'}</p>
+                <div className="flex items-start">
+                  <CreditCard className="h-5 w-5 text-gray-400 mr-2 mt-0.5" />
+                  <div>
+                    <p className="font-medium text-gray-900 dark:text-white">
+                      {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Bank Transfer'}
+                    </p>
+                    <p className="mt-2">Status: {order.status === 'pending' ? 'Pending' : 'Completed'}</p>
+                    
+                    {order.payment_method === 'bank' && (
+                      <div className="mt-3 bg-gray-50 dark:bg-gray-700/50 p-3 rounded-md">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          If you haven't completed your payment yet, please use the bank details 
+                          provided during checkout and include your order number as reference.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Help Section */}
+          <div className="p-6 bg-gray-50 dark:bg-gray-700/30 border-t border-gray-200 dark:border-gray-700">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <AlertTriangle className="h-6 w-6 text-yellow-500" />
+              </div>
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-gray-900 dark:text-white">Need help with your order?</h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  If you have any questions about your order, please contact our customer support team at 
+                  <a href="tel:+917594888505" className="ml-1 text-primary-600 dark:text-primary-400">
+                    +91 759 488 8505
+                  </a>
+                </p>
               </div>
             </div>
           </div>
